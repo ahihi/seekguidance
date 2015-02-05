@@ -1,130 +1,114 @@
 #!/usr/bin/env python
+from collections import namedtuple
 import json
 import os
 import random
-import re
+import string
 import sys
 
-class Leaf(object):
-    def __init__(self, text):
-        self.text = text
-        self.size = 1
-
-class Sequence(object):
-    def __init__(self, nodes):
-        self.nodes = nodes
-        self.size = reduce(lambda s, n: s * n.size, self.nodes, 1)
-
-class Branch(object):
-    def __init__(self, name, children = ()):
-        self.name = name
-        self.children = []
-        self.children.extend(children)        
-        self.size = sum(map(lambda node: node.size, self.children))
-
-def build_grammar_tree(grammar_dict, initial, custom_sizes = {}):
-    expansions = {}
-    
-    def _is_nonempty(node):
-        return isinstance(node, Branch) or bool(node.text)
-    
-    def _expand(symbol):
-        if symbol not in expansions:
-            productions = grammar_dict[symbol]
-            children = []
-            for production in productions:
-                production_parts = filter(_is_nonempty, _split(symbol, production))
-                if len(production_parts) == 0:
-                    child = Leaf(u"")
-                elif len(production_parts) == 1:
-                    child = production_parts[0]
-                else:
-                    child = Sequence(production_parts)
-                    
-                children.append(child)
-            
-            if len(children) == 0:
-                node = Leaf(u"")
-            elif len(children) == 1:
-                node = children[0]
-            else:
-                node = Branch(symbol, children)
-                        
-            expansions[symbol] = node
-            
-        return expansions[symbol]
-
-    def _split(symbol, production):
-        expand = False
-        escape = False
-        seq = u""
-        for char in production:
-            if escape:
-                seq += char
-                escape = False
-            elif expand:
-                if char == u"}":
-                    node = _expand(seq)
-                    yield node
-                    expand = False
-                    seq = u""
-                elif char == u"\\":
-                    escape = True
-                else:
-                    seq += char
-            elif char == u"{":
-                if seq:
-                    node = Leaf(seq)
-                    yield node
-                expand = True
-                seq = u""
-            elif char == u"\\":
-                escape = True
-            else:
-                seq += char
-        
-        if expand or escape:
-            raise ValueError("parse error")
-                
-        if seq:
-            node = Leaf(seq)
-            yield node
-    
-    return _expand(initial)
-
-def generate_sentence(node, weights = {}):
-    if isinstance(node, Leaf):
-        return node.text
-    elif isinstance(node, Sequence):
-        return u"".join(map(generate_sentence, node.nodes))
-    else:
-        child_count = len(node.children)
-        
-        node_weights = weights.get(node.name, None)
-        if node_weights != None:
-            if len(node_weights) != child_count:
-                raise ValueError("weights length mismatch")
-            
-            size = sum(node_weights)
-            child_size = lambda i: node_weights[i]
+def on_first(f):
+    def _apply(text):
+        if text:
+            return f(text[0]) + text[1:]
         else:
-            size = node.size
-            child_size = lambda i: node.children[i].size
+            return text
+    
+    return _apply
+
+class GrammarFormatter(string.Formatter):    
+    def get_value(self, key, args, kwargs):
+        value = string.Formatter.get_value(self, key, args, kwargs)
+        if hasattr(value, "__call__"):
+            value = value()
         
-        threshold = random.randrange(size)
-        total = 0
-        for i in xrange(child_count):
-            total += child_size(i)
-            if total > threshold:
-                chosen_child = node.children[i]
+        return value
+    
+    def format_field(self, value, format_spec):
+        try:
+            return string.Formatter.format_field(self, value, format_spec)
+        except ValueError:
+            uppercase = lambda s: s.upper()
+            lowercase = lambda s: s.lower()
+            format_specs = {
+                "A": on_first(uppercase),
+                "u": uppercase,
+                "l": lowercase
+            }
+            format_proc = format_specs.get(format_spec, None)
+            if format_proc != None:
+                return format_proc(value)
+            else:
+                raise
+    
+Production = namedtuple("Production", ["text", "fields", "weight"])
+Rule = namedtuple("Rule", ["productions", "weight"])
+
+def get_format_fields(formatter, format):
+    return [fld for lit, fld, fmt, cnv in formatter.parse(format) if fld != None]
+
+def weigh_grammar(formatter, grammar):
+    w_grammar = {}
+    
+    def _weigh(symbol):
+        if symbol not in w_grammar:
+            productions = grammar[symbol]
+            weight = 0
+            w_productions = []
+            for production in productions:
+                production_weight = 1
+                fields = get_format_fields(formatter, production)
+                for field in fields:
+                    production_weight *= _weigh(field)
+                w_productions.append(Production(production, fields, production_weight))
+                weight += production_weight
+            
+            w_grammar[symbol] = Rule(w_productions, weight)
+        else:
+            weight = w_grammar[symbol].weight
+        
+        return weight
+    
+    for symbol in grammar:
+        _weigh(symbol)
+    
+    return w_grammar
+
+def new_generator(grammar, weights = {}):
+    gf = GrammarFormatter()
+    w_grammar = weigh_grammar(gf, grammar)
+    
+    def _generate_sentence(symbol):
+        rule = w_grammar[symbol]
+        production_count = len(rule.productions)
+        
+        symbol_weights = weights.get(symbol, None)
+        if symbol_weights != None:
+            if len(symbol_weights) != production_count:
+                raise ValueError("weights length mismatch")
+        
+            total_weight = sum(symbol_weights)
+            production_weight = lambda i: symbol_weights[i]
+        else:
+            total_weight = rule.weight
+            production_weight = lambda i: rule.productions[i].weight
+        
+        threshold = random.randrange(total_weight)
+        accum_weight = 0
+        production = None
+        for i in xrange(production_count):
+            accum_weight += production_weight(i)
+            if accum_weight > threshold:
+                production = rule.productions[i]
                 break
         
-        return generate_sentence(chosen_child)
+        assert production != None
+        
+        expansions = {field: lambda: _generate_sentence(field) for field in production.fields}
+        return gf.format(production.text, **expansions)
+    
+    return _generate_sentence
 
-class GrammarSpec(object):
-    def __init__(self, initial_symbol, weights = {}):
-        self.initial_symbol = initial_symbol
-        self.weights = weights
+GrammarSpec = namedtuple("GrammarSpec", ["initial_symbol", "weights"])
 
 grammars = {
     "darksouls2": GrammarSpec(u"message", {u"message": [7, 1, 1, 1, 1, 1, 1, 1]})
@@ -149,10 +133,10 @@ def main():
         
     json_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "grammars", "{grammar}.json".format(grammar = grammar_name))
     with open(json_path, "rb") as file:
-        grammar_dict = json.load(file)
-
-    g = build_grammar_tree(grammar_dict, grammar_spec.initial_symbol)
-    print generate_sentence(g, grammar_spec.weights)    
+        grammar = json.load(file)
+        
+    generate_sentence = new_generator(grammar, grammar_spec.weights)
+    print generate_sentence(grammar_spec.initial_symbol)
 
 if __name__ == "__main__":
     main()
