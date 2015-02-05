@@ -111,6 +111,7 @@ def new_generator(grammar, weights = {}):
 GrammarSpec = namedtuple("GrammarSpec", ["initial_symbol", "weights"])
 
 grammars = {
+    "darksouls": GrammarSpec(u"message", {}),
     "darksouls2": GrammarSpec(u"message", {u"message": [7, 1, 1, 1, 1, 1, 1, 1]})
 }
 
