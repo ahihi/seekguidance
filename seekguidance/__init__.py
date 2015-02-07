@@ -1,10 +1,8 @@
-#!/usr/bin/env python
-from collections import namedtuple
+import collections
 import json
 import os
 import random
 import string
-import sys
 
 def on_first(f):
     def _apply(text):
@@ -40,8 +38,8 @@ class GrammarFormatter(string.Formatter):
             else:
                 raise
     
-Production = namedtuple("Production", ["text", "fields", "weight"])
-Rule = namedtuple("Rule", ["productions", "weight"])
+Production = collections.namedtuple("Production", ["text", "fields", "weight"])
+Rule = collections.namedtuple("Rule", ["productions", "weight"])
 
 def get_format_fields(formatter, format):
     return [fld for lit, fld, fmt, cnv in formatter.parse(format) if fld != None]
@@ -73,7 +71,7 @@ def weigh_grammar(formatter, grammar):
     
     return w_grammar
 
-def new_generator(grammar, weights = {}):
+def from_grammar(grammar, weights = {}):
     gf = GrammarFormatter()
     w_grammar = weigh_grammar(gf, grammar)
     
@@ -108,36 +106,22 @@ def new_generator(grammar, weights = {}):
     
     return _generate_sentence
 
-GrammarSpec = namedtuple("GrammarSpec", ["initial_symbol", "weights"])
+def from_file(path, weights = {}):
+    with open(path, "rb") as file:
+        grammar = json.load(file)
+    
+    return from_grammar(grammar, weights)
 
-grammars = {
-    "darksouls": GrammarSpec(u"message", {}),
-    "darksouls2": GrammarSpec(u"message", {u"message": [7, 1, 1, 1, 1, 1, 1, 1]})
+Preset = collections.namedtuple("Preset", ["initial_symbol", "weights"])
+
+PRESET_DIR = os.path.join(os.path.dirname(__file__), "presets")
+PRESETS = {
+    "darksouls": Preset(u"message", {}),
+    "darksouls2": Preset(u"message", {u"message": [7, 1, 1, 1, 1, 1, 1, 1]})
 }
 
-def main():
-    if len(sys.argv) < 2:
-        print >> sys.stderr, u"Usage: {prog} {grammars}".format(
-            prog = os.path.basename(sys.argv[0]),
-            grammars = u"|".join(sorted(grammars.keys()))
-        )
-        sys.exit(1)
-    
-    grammar_name = sys.argv[1]
-    grammar_spec = grammars.get(grammar_name, None)
-    
-    if grammar_spec == None:
-        print >> sys.stderr, u"Unknown grammar: \"{grammar\"".format(
-            grammar = grammar_name
-        )
-        sys.exit(2)
-        
-    json_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "grammars", "{grammar}.json".format(grammar = grammar_name))
-    with open(json_path, "rb") as file:
-        grammar = json.load(file)
-        
-    generate_sentence = new_generator(grammar, grammar_spec.weights)
-    print generate_sentence(grammar_spec.initial_symbol)
-
-if __name__ == "__main__":
-    main()
+def from_preset(name):
+    preset = PRESETS[name]
+    path = os.path.join(PRESET_DIR, name + ".json")
+    g = from_file(path, preset.weights)
+    return lambda: g(preset.initial_symbol)
