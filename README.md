@@ -1,7 +1,7 @@
 # seekguidance
 
-    $ ./seekguidance.py darksouls
+    $ seekguidance darksouls
     Imminent elation…
     
-    $ ./seekguidance.py darksouls2
+    $ seekguidance darksouls2
     Be wary of two-handing but Try sorcery
