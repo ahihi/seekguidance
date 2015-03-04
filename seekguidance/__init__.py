@@ -118,7 +118,8 @@ PRESET_DIR = os.path.join(os.path.dirname(__file__), "presets")
 PRESETS = {
     "darksouls": Preset(u"message", {}),
     "darksouls2": Preset(u"message", {u"message": [7, 1, 1, 1, 1, 1, 1, 1]}),
-    "darksouls2patch": Preset(u"message", {u"message": [7, 1, 1, 1, 1, 1, 1, 1]})
+    "darksouls2patch": Preset(u"message", {u"message": [7, 1, 1, 1, 1, 1, 1, 1]}),
+    "demonssouls": Preset(u"message", {})
 }
 
 def from_preset(name):
