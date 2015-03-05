@@ -104,6 +104,7 @@ def from_grammar(grammar, weights = {}):
         expansions = {field: lambda: _generate_sentence(field) for field in production.fields}
         return gf.format(production.text, **expansions)
     
+    _generate_sentence.grammar = w_grammar
     return _generate_sentence
 
 def from_file(path, weights = {}):
@@ -119,11 +120,15 @@ PRESETS = {
     "darksouls": Preset(u"message", {}),
     "darksouls2": Preset(u"message", {u"message": [7, 1, 1, 1, 1, 1, 1, 1]}),
     "darksouls2patch": Preset(u"message", {u"message": [7, 1, 1, 1, 1, 1, 1, 1]}),
-    "demonssouls": Preset(u"message", {})
+    "demonssouls": Preset(u"message", {u"message": [2, 2, 2, 2, 2, 1]})
 }
 
 def from_preset(name):
     preset = PRESETS[name]
     path = os.path.join(PRESET_DIR, name + ".json")
-    g = from_file(path, preset.weights)
-    return lambda: g(preset.initial_symbol)
+    
+    _generate = from_file(path, preset.weights)
+    _preset_generate = lambda: _generate(preset.initial_symbol)
+    _preset_generate.grammar = _generate.grammar
+    
+    return _preset_generate
