@@ -101,7 +101,7 @@ def from_grammar(grammar, weights = {}):
         
         assert production != None
         
-        expansions = {field: lambda: _generate_sentence(field) for field in production.fields}
+        expansions = {field: (lambda fld: lambda: _generate_sentence(fld))(field) for field in production.fields}
         return gf.format(production.text, **expansions)
     
     _generate_sentence.grammar = w_grammar
@@ -120,7 +120,9 @@ PRESETS = {
     "darksouls": Preset(u"message", {}),
     "darksouls2": Preset(u"message", {u"message": [7, 1, 1, 1, 1, 1, 1, 1]}),
     "darksouls2patch": Preset(u"message", {u"message": [7, 1, 1, 1, 1, 1, 1, 1]}),
-    "demonssouls": Preset(u"message", {u"message": [2, 2, 2, 2, 2, 1]})
+    "darksouls3": Preset(u"message", {u"message": [1, 1]}),
+    "demonssouls": Preset(u"message", {u"message": [2, 2, 2, 2, 2, 1]}),
+    "bloodborne": Preset(u"message", {})
 }
 
 def from_preset(name):
