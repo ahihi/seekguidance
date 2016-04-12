@@ -8,3 +8,9 @@
     
     $ seekguidance demonssouls
     Don't bother with curved swords.
+    
+    $ seekguidance bloodborne
+    treat Grand Cathedral with care
+    
+    $ seekguidance darksouls3
+    Huh, it's a friendship… in short be wary of locking-on
