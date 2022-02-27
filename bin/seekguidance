@@ -6,23 +6,16 @@ import seekguidance
 
 def main():
     if len(sys.argv) < 2:
-        print >> sys.stderr, u"Usage: {prog} {grammars}".format(
+        print("Usage: {prog} {grammars}".format(
             prog = os.path.basename(sys.argv[0]),
-            grammars = u"|".join(sorted(seekguidance.PRESETS.keys()))
-        )
+            grammars = "|".join(sorted(seekguidance.PRESETS.keys()))
+        ), file=sys.stderr)
         sys.exit(1)
     
     preset = sys.argv[1]
     
-    try:
-        generate_sentence = seekguidance.from_preset(preset)
-    except KeyError:
-        print >> sys.stderr, u"Unknown preset: \"{preset}\"".format(
-            preset = preset
-        )
-        sys.exit(2)
-    else:
-        print generate_sentence()
+    generate_sentence = seekguidance.from_preset(preset)
+    print(generate_sentence())
 
 if __name__ == "__main__":
     main()

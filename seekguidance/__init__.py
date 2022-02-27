@@ -2,7 +2,19 @@ import collections
 import json
 import os
 import random
+import re
 import string
+
+# TODO: support backrefs when generating
+
+backref_re = re.compile(r"^\$([0-9]+)$")
+
+def parse_backref(symbol):
+    m = backref_re.match(symbol)
+    return int(m.group(1)) if m else None
+
+def is_backref(symbol):
+    return backref_re.match(symbol) is not None
 
 def on_first(f):
     def _apply(text):
@@ -33,7 +45,7 @@ class GrammarFormatter(string.Formatter):
                 "l": lowercase
             }
             format_proc = format_specs.get(format_spec, None)
-            if format_proc != None:
+            if format_proc is not None:
                 return format_proc(value)
             else:
                 raise
@@ -48,7 +60,9 @@ def weigh_grammar(formatter, grammar):
     w_grammar = {}
     
     def _weigh(symbol):
-        if symbol not in w_grammar:
+        if is_backref(symbol):
+            weight = 1
+        elif symbol not in w_grammar:
             productions = grammar[symbol]
             weight = 0
             w_productions = []
@@ -68,7 +82,7 @@ def weigh_grammar(formatter, grammar):
     
     for symbol in grammar:
         _weigh(symbol)
-    
+        
     return w_grammar
 
 def from_grammar(grammar, weights = {}):
@@ -89,20 +103,35 @@ def from_grammar(grammar, weights = {}):
         else:
             total_weight = rule.weight
             production_weight = lambda i: rule.productions[i].weight
-        
+
         threshold = random.randrange(total_weight)
         accum_weight = 0
         production = None
-        for i in xrange(production_count):
+        for i in range(production_count):
             accum_weight += production_weight(i)
             if accum_weight > threshold:
                 production = rule.productions[i]
                 break
         
-        assert production != None
-        
-        expansions = {field: (lambda fld: lambda: _generate_sentence(fld))(field) for field in production.fields}
-        return gf.format(production.text, **expansions)
+        assert production is not None
+
+        expanded = []
+        def _make_expand(field):
+            i = parse_backref(field)
+            if i is not None:
+                def _refer():
+                    return expanded[i-1]
+                return _refer
+            else:
+                def _expand():
+                    sentence = _generate_sentence(field)
+                    expanded.append(sentence)
+                    return sentence
+                return _expand
+            
+        expansions = [(field, _make_expand(field)) for field in production.fields]
+        expansions_dict = {k: v for k, v in expansions}
+        return gf.format(production.text, **expansions_dict)
     
     _generate_sentence.grammar = w_grammar
     return _generate_sentence
@@ -117,12 +146,13 @@ Preset = collections.namedtuple("Preset", ["initial_symbol", "weights"])
 
 PRESET_DIR = os.path.join(os.path.dirname(__file__), "presets")
 PRESETS = {
-    "darksouls": Preset(u"message", {}),
-    "darksouls2": Preset(u"message", {u"message": [7, 1, 1, 1, 1, 1, 1, 1]}),
-    "darksouls2patch": Preset(u"message", {u"message": [7, 1, 1, 1, 1, 1, 1, 1]}),
-    "darksouls3": Preset(u"message", {u"message": [1, 1]}),
-    "demonssouls": Preset(u"message", {u"message": [2, 2, 2, 2, 2, 1]}),
-    "bloodborne": Preset(u"message", {})
+    "darksouls": Preset("message", {}),
+    "darksouls2": Preset("message", {"message": [7, 1, 1, 1, 1, 1, 1, 1]}),
+    "darksouls2patch": Preset("message", {"message": [7, 1, 1, 1, 1, 1, 1, 1]}),
+    "darksouls3": Preset("message", {"message": [1, 1]}),
+    "demonssouls": Preset("message", {"message": [2, 2, 2, 2, 2, 1]}),
+    "bloodborne": Preset("message", {}),
+    "eldenring": Preset("message", {"message": [1, 1]})
 }
 
 def from_preset(name):
