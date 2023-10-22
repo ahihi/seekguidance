@@ -43,3 +43,27 @@ Huh, it's a friendship… in short be wary of locking-on
 $ seekguidance eldenring
 Didn't expect sorcery…, turn back, O turn back
 ```
+
+## usage as a library
+
+import:
+
+```python
+import seekguidance
+```
+
+list available presets:
+
+```python
+print(seekguidance.PRESETS.keys())
+```
+
+generate messages:
+
+```python
+das_generate_message = seekguidance.from_preset("darksouls")
+
+print(das_generate_message())
+print(das_generate_message())
+print(das_generate_message())
+```
