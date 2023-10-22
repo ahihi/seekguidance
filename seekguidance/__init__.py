@@ -151,6 +151,7 @@ PRESETS = {
     "darksouls2patch": Preset("message", {"message": [7, 1, 1, 1, 1, 1, 1, 1]}),
     "darksouls3": Preset("message", {"message": [1, 1]}),
     "demonssouls": Preset("message", {"message": [2, 2, 2, 2, 2, 1]}),
+    "demonssouls-remake-fi": Preset("message", {}),
     "bloodborne": Preset("message", {}),
     "eldenring": Preset("message", {"message": [1, 1]})
 }
