@@ -1,0 +1,18 @@
+[build-system]
+requires = [ "setuptools" ]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "seekguidance"
+description = "seekguidance"
+version = "0.1"
+dependencies = [
+]
+
+[project.scripts]
+imageindex = "seekguidance.main:main"
+
+[tool.setuptools.packages.find]
+# where = ["."]
+# include = "seekguidance"
+namespaces = false

@@ -152,7 +152,8 @@ PRESETS = {
     "darksouls3": Preset("message", {"message": [1, 1]}),
     "demonssouls": Preset("message", {"message": [2, 2, 2, 2, 2, 1]}),
     "bloodborne": Preset("message", {}),
-    "eldenring": Preset("message", {"message": [1, 1]})
+    "eldenring": Preset("message", {"message": [1, 1]}),
+    "lanternrite": Preset("message", {}),
 }
 
 def from_preset(name):
